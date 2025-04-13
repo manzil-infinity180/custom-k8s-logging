@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -67,18 +68,40 @@ func LogWorkloads(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Query("name")
 
+	timestamp := time.Now().Format(time.RFC3339)
 	if namespace == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("no namespace exists with name %s", namespace)})
+
+		message := fmt.Sprintf("[%s] %s", timestamp, fmt.Sprintf("no namespace exists with name %s", namespace))
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+			log.Println("Error writing to WebSocket:", err)
+		}
 		return
 	}
-
+	// checking for the namespace exists
+	_, err = clientset.CoreV1().Namespaces().Get(c, namespace, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		message := fmt.Sprintf("[%s] %s", timestamp, fmt.Sprintf("no namespace exists with name %s", namespace))
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+			log.Println("Error writing to WebSocket:", err)
+		}
+		return
+	}
+	if err != nil {
+		message := fmt.Sprintf("[%s] %s", timestamp, "no namespace exists with name")
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+			log.Println("Error writing to WebSocket:", err)
+		}
+		return
+	}
 	discoveryClient := clientset.Discovery()
 	gvr, _, err := getGVR(discoveryClient, resourceKind)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported resource type"})
+		message := fmt.Sprintf("[%s] %s", timestamp, "error while retreiving the gvr")
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+			log.Println("Error writing to WebSocket:", err)
+		}
 		return
 	}
-	//tweakListOptions := nil
 
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, time.Minute, namespace, tweakListOptions(name))
 	//factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, time.Minute, namespace, func(options *metav1.ListOptions) {
