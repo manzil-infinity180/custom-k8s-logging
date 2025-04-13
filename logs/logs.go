@@ -162,6 +162,7 @@ func LogWorkloads(c *gin.Context) {
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
 				log.Println("Error writing to WebSocket:", err)
 			}
+			// updated logs for the labels
 			labelsOld := old.GetLabels()
 			labelsNew := new.GetLabels()
 			if !reflect.DeepEqual(labelsOld, labelsNew) {
@@ -170,7 +171,7 @@ func LogWorkloads(c *gin.Context) {
 					log.Println("Error writing label change to WebSocket:", err)
 				}
 			}
-
+			// Logs for the Deployment
 			if strings.EqualFold(gvk.Kind, "Deployment") {
 				oldReplicas, _, err1 := unstructured.NestedInt64(old.Object, "spec", "replicas")
 				newReplicas, _, err2 := unstructured.NestedInt64(new.Object, "spec", "replicas")
@@ -183,6 +184,7 @@ func LogWorkloads(c *gin.Context) {
 				}
 				specOld, _, _ := unstructured.NestedMap(old.Object, "spec", "template", "spec")
 				specNew, _, _ := unstructured.NestedMap(new.Object, "spec", "template", "spec")
+
 				containersOld, _, _ := unstructured.NestedSlice(specOld, "containers")
 				containersNew, _, _ := unstructured.NestedSlice(specNew, "containers")
 
