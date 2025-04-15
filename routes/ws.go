@@ -14,6 +14,7 @@ func setupResourceRoutes(router *gin.Engine) {
 	api := router.Group("/api")
 	{
 		api.GET("/:resourceKind/:namespace/log", logs.LogWorkloads)
+		api.GET("/:resourceKind/:namespace/log/2", logs.LogWorkloads2)
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusAccepted, gin.H{
 				"status": "yep!!! bro i am running!!!",
